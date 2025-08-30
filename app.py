@@ -3,10 +3,10 @@ from openai import OpenAI
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
-# --- Настройка OpenAI ---
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# --- Настройка локальной модели ---
+
 LOCAL_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -19,7 +19,7 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 
 def ask_online(prompt: str) -> str:
-    """Онлайн: запрос к OpenAI API"""
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -34,14 +34,14 @@ def ask_online(prompt: str) -> str:
         return None
 
 def ask_offline(prompt: str) -> str:
-    """Оффлайн: запрос к локальной модели"""
+
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(**inputs, max_new_tokens=200)
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def ask(prompt: str) -> str:
-    """Сначала пробуем онлайн, если не работает — оффлайн"""
+
     answer = ask_online(prompt)
     if answer is None:
         print("⚡ Переключаемся в оффлайн-режим...")
@@ -49,7 +49,7 @@ def ask(prompt: str) -> str:
     return answer
 
 
-# --- Тест ---
+
 if __name__ == "__main__":
     question = "Привет, расскажи интересный факт про космос!"
     print("Вопрос:", question)
