@@ -14,8 +14,9 @@ print(f"Загрузка локальной модели {LOCAL_MODEL}...")
 tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL)
 model = AutoModelForCausalLM.from_pretrained(
     LOCAL_MODEL,
-    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-).to(device)
+    torch_dtype=torch.float32,   # лучше для стабильности
+).to(device)  # 🚀 явно грузим на CPU или GPU
+
 
 def ask_online(prompt: str) -> str:
 
@@ -29,33 +30,59 @@ def ask_online(prompt: str) -> str:
     return response.choices[0].message.content
 
 def ask_offline(prompt: str) -> str:
-
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
+
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=200,
+            max_new_tokens=150,
+            pad_token_id=tokenizer.eos_token_id,
             do_sample=True,
             top_k=50,
             top_p=0.95,
-            temperature=0.8
+            temperature=0.7
         )
-    text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return text[len(prompt):].strip()
+
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # 🔎 Отладка: показываем весь текст
+    print("\n[DEBUG] Сырой ответ модели:")
+    print(generated_text)
+
+    clean_answer = generated_text[len(prompt):].strip()
+    print("\n[OFFLINE] Ответ модели:")
+    print(clean_answer)
+    return clean_answer
+
+
 
 
 if __name__ == "__main__":
-    question = "Привет, расскажи интересный факт про космос!"
+    # Тестируем генерацию напрямую
+    inputs = tokenizer("Привет! Расскажи про Италию.", return_tensors="pt").to(device)
+    outputs = model.generate(**inputs, max_new_tokens=50)
+    print("\n[TEST] Генерация напрямую:")
+    print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
+
+if __name__ == "__main__":
     mode = input("Выбери режим (online/offline): ").strip().lower()
 
-    if mode == "online":
-        print("🌐 Онлайн режим:")
-        print(ask_online(question))
+    while True:
+        question = input("\n❓ Вопрос (или 'exit' для выхода): ")
 
-    elif mode == "offline":
-        print("💻 Оффлайн режим:")
-        print(ask_offline(question))
+        if question.lower() in ["exit", "quit", "выход"]:
+            print("👋 Выход из программы.")
+            break
 
-    else:
-        print("⚠️ Неверный выбор! Напиши 'online' или 'offline'.")
+        if mode == "online":
+            print("\n🌐 Онлайн режим:")
+            print(ask_online(question))
+
+        elif mode == "offline":
+            print("\n💻 Оффлайн режим:")
+            print(ask_offline(question))
+
+        else:
+            print("⚠️ Неверный выбор! Напиши 'online' или 'offline'.")
+            break
